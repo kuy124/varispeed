@@ -39,7 +39,7 @@ Built and checked on Chrome 149. The manifest uses `world: "MAIN"` content scrip
 
 **Seeking** works in two places, both of which act on the video that is actually on screen:
 
-- **On the video:** hover it for a bar with a draggable playhead, `-10 -5 +5 +10`, and a live `mm:ss / mm:ss` readout. Works in fullscreen and inside iframes.
+- **On the video:** hover it for a bar with a draggable playhead, `-10 -5 +5 +10`, and a live `mm:ss / mm:ss` readout. Works in fullscreen and inside iframes. The bar hides again two seconds after the pointer stops, so it does not sit over the frame.
 - **In the panel:** click the timeline to jump, drag to scrub, or type a time as `hh:mm:ss` and press Enter.
 
 The panel talks to the page over messages rather than acting directly, because a popup runs in its own document and cannot reach a `<video>` in the tab. It picks the largest visible video on the page, so a small muted preview cannot take the seek instead of the main video.

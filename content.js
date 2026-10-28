@@ -161,7 +161,8 @@
       ui.time.innerHTML = `<b>${fmt(t)}</b> / ${fmt(dur)}`; // show the target while dragging
     });
     // Keep the bar visible while the pointer is on it, not just on the video.
-    host.addEventListener('pointerenter', () => clearTimeout(ui.hideTimer));
+    host.addEventListener('pointerenter', () => { clearTimeout(ui.hideTimer); armIdle(video, ui); });
+    host.addEventListener('pointermove', () => armIdle(video, ui));
     host.addEventListener('pointerleave', () => hide(video));
 
     overlays.set(video, ui);
@@ -205,13 +206,29 @@
     ui.raf = requestAnimationFrame(() => tick(video, ui));
   }
 
+  const IDLE_MS = 2000;
+
   function show(video) {
     if (video.closest('.ad-showing')) return;
     const ui = overlays.get(video) || buildOverlay(video);
+    if (!ui.raf) {
+      ui.host.style.display = 'block';
+      ui.raf = requestAnimationFrame(() => tick(video, ui));
+    }
+    armIdle(video, ui);
+  }
+
+  // Hide once the pointer stops. The bar sits on top of the video, so leaving it
+  // up covers subtitles and the frame the user is watching.
+  function armIdle(video, ui) {
     clearTimeout(ui.hideTimer);
-    ui.host.style.display = 'block';
-    cancelAnimationFrame(ui.raf);
-    ui.raf = requestAnimationFrame(() => tick(video, ui));
+    ui.hideTimer = setTimeout(() => {
+      // A drag in progress wins. Re-arm and try again after the next pause.
+      if (ui.dragging) return armIdle(video, ui);
+      cancelAnimationFrame(ui.raf);
+      ui.raf = 0;
+      ui.host.style.display = 'none';
+    }, IDLE_MS);
   }
 
   function hide(video) {
@@ -243,6 +260,8 @@
     video.addEventListener('ratechange', () => applySettings(video));
     video.addEventListener('loadedmetadata', () => applySettings(video));
     video.addEventListener('pointerenter', () => show(video));
+    // Re-show after an idle hide: any movement brings the bar back.
+    video.addEventListener('pointermove', () => show(video));
     video.addEventListener('pointerleave', () => hide(video));
     applySettings(video);
   }
