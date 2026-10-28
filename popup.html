@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Varispeed</title>
+<style>
+  /* Tachometer: ink ground, one amber signal, mono numerals.
+     Dark because the panel sits next to a video player and is read at a glance. */
+  :root {
+    --ink: #0e0f11;
+    --surface: #17191c;
+    --line: rgba(255,255,255,.11);
+    --text: #eef0f2;
+    --muted: #a2a8b0;
+    --signal: #ffb020;
+    --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 296px; margin: 0; padding: 14px;
+    background: var(--ink); color: var(--text);
+    font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  button, input { font: inherit; color: inherit; }
+  button { background: none; border: 0; cursor: pointer; padding: 0; }
+  button:focus-visible, input:focus-visible, .track:focus-visible {
+    outline: 2px solid var(--signal); outline-offset: 2px;
+  }
+
+  /* rate gauge: the one focal point */
+  .gauge { display: flex; align-items: center; gap: 8px; }
+  /* trim buttons: quieter than the numeral and the rail. Border only, muted
+     glyph, so they read as trim on a gauge rather than two empty boxes. */
+  .step {
+    width: 30px; height: 30px; flex: none; border-radius: 7px;
+    background: none; border: 1px solid var(--line); color: var(--muted);
+    font: 500 15px/1 var(--mono);
+  }
+  .step:hover { color: var(--signal); border-color: rgba(255,176,32,.45); }
+  .step:active { background: rgba(255,176,32,.12); }
+  .rate {
+    flex: 1; text-align: center; letter-spacing: -.02em;
+    font: 600 34px/1 var(--mono); font-variant-numeric: tabular-nums;
+  }
+  .rate.long { font-size: 24px; }
+  /* superscript: reads as "2 to the times", and keeps the digits the big thing */
+  .rate .x { font-size: 17px; color: var(--muted); margin-left: 2px; vertical-align: 9px; }
+
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; margin: 12px 0 0; border-radius: 3px;
+    background: var(--surface); cursor: pointer;
+  }
+  /* A needle, not a round thumb: the same playhead language as the on-video
+     rail, and it points at the scale instead of covering it. */
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 3px; height: 18px; border: 0;
+    border-radius: 1px; background: var(--signal);
+    box-shadow: 0 0 0 4px var(--ink);
+  }
+  .ticks { position: relative; height: 17px; margin-top: 5px; }
+  .ticks span {
+    position: absolute; top: 0; transform: translateX(-50%); text-align: center;
+    font: 10px/1 var(--mono); color: var(--muted); white-space: nowrap;
+  }
+  /* tick line above the label, so the numbers sit on a scale instead of floating */
+  .ticks span::before {
+    content: ""; display: block; width: 1px; height: 4px;
+    margin: 0 auto 3px; background: rgba(255,255,255,.3);
+  }
+
+  /* presets: one segmented control, two rows. Slow left, fast right, so the
+     grid reads as one scale instead of two unrelated groups. 1px gaps over a
+     line-coloured ground give the dividers, which works across row breaks. */
+  .presets {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px;
+    margin-top: 10px; background: var(--line);
+    border: 1px solid var(--line); border-radius: 7px; overflow: hidden;
+  }
+  .presets button {
+    padding: 7px 0; border-radius: 0; background: var(--surface);
+    font: 11px/1 var(--mono); color: var(--muted);
+  }
+  .presets button:hover { color: var(--text); background: #1f2226; }
+  /* Selected is a tint, not a solid fill: a full amber block would outshout the
+     numeral, and the numeral is the focal point. Amber still means "the saved rate". */
+  .presets button[aria-pressed=true] {
+    background: #3a2c10; color: var(--signal); font-weight: 600;
+    box-shadow: inset 0 0 0 1px #6b5015;
+  }
+
+  hr { border: 0; border-top: 1px solid var(--line); margin: 14px 0 11px; }
+
+  /* seek deck: the real timeline of the page's video */
+  /* transport row: elapsed, then total, then the one play control */
+  .clock { display: flex; align-items: baseline; gap: 5px; margin-bottom: 4px; }
+  .clock span { font: 12px/1 var(--mono); font-variant-numeric: tabular-nums; color: var(--muted); }
+  .clock .elapsed { color: var(--text); font-size: 13px; }
+  .clock .total::before { content: "/ "; color: #6b727b; }
+  .clock .play {
+    margin-left: auto; align-self: center; display: grid; place-items: center;
+    width: 26px; height: 22px; border-radius: 5px;
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+  }
+  .clock .play:hover { color: var(--text); background: #1f2226; }
+  /* glyph drawn in CSS: a triangle that becomes two bars */
+  .clock .play i {
+    width: 0; height: 0; margin-left: 2px; border-left: 8px solid currentColor;
+    border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+  }
+  .clock .play[data-playing=true] i {
+    width: 9px; height: 10px; margin: 0; border: 0;
+    border-left: 3px solid currentColor; border-right: 3px solid currentColor;
+  }
+
+  /* timeline: thinner than the speed slider. Its fill is neutral, not amber:
+     amber is the saved setting, media progress is page state. The handle is a
+     playhead bar rather than a thumb, so the two rails never read as one. */
+  .track {
+    position: relative; height: 24px; display: flex; align-items: center;
+    cursor: pointer; touch-action: none;
+  }
+  .track::before {
+    content: ""; position: absolute; left: 0; right: 0; top: 10px;
+    height: 3px; border-radius: 2px; background: #2a2e33;
+  }
+  .track .fill {
+    position: absolute; left: 0; top: 10px; height: 3px;
+    border-radius: 2px; background: #6e757e; width: 0;
+  }
+  .track .knob {
+    position: absolute; left: 0; top: 50%; width: 2px; height: 15px;
+    border-radius: 1px; background: var(--text); transform: translate(-50%, -50%);
+  }
+  .track:hover .fill { background: #858d97; }
+  .track:hover .knob { box-shadow: 0 0 0 3px rgba(255,255,255,.14); }
+  /* target time under the cursor, so a seek is aimed instead of guessed */
+  .track .hint {
+    position: absolute; bottom: 19px; transform: translateX(-50%);
+    padding: 2px 5px; border-radius: 4px; background: #23272c;
+    border: 1px solid var(--line); font: 10px/1 var(--mono); color: var(--text);
+    opacity: 0; pointer-events: none; transition: opacity .12s;
+  }
+  .track:hover .hint { opacity: 1; }
+
+  /* skips: transient actions, so bare text with a wide hit area, not boxes.
+     Deliberately a different rhythm from the segmented preset strip. */
+  .skips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; margin-top: 5px; }
+  .skips button {
+    padding: 8px 0; border-radius: 5px; background: none; border: 0;
+    font: 11px/1 var(--mono); color: var(--muted);
+  }
+  .skips button:hover { background: var(--surface); color: var(--text); }
+  /* stronger divider where the direction flips: -5 | +5 */
+  .skips button:nth-child(4) { border-left: 1px solid var(--line); border-radius: 0 5px 5px 0; }
+  .skips button:nth-child(3) { border-radius: 5px 0 0 5px; }
+
+  .jump { display: grid; grid-template-columns: 1fr auto; gap: 6px; margin-top: 7px; }
+  /* hh:mm:ss as one timecode field, the way a transport shows it, not three
+     loose boxes that look like three more buttons */
+  .entry {
+    display: flex; align-items: center; gap: 1px; padding: 0 8px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 6px;
+  }
+  .entry span { font: 12px/1 var(--mono); color: #8f96a0; }
+  .entry input {
+    width: 100%; min-width: 0; padding: 6px 2px; text-align: center;
+    background: none; border: 0; border-radius: 0;
+    font: 12px/1 var(--mono); font-variant-numeric: tabular-nums;
+    -moz-appearance: textfield;
+  }
+  .entry input::-webkit-outer-spin-button,
+  .entry input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  .entry input::placeholder { color: #8f96a0; }
+  .entry:focus-within { border-color: rgba(255,176,32,.6); }
+  .entry input:focus-visible { outline: 0; }
+  .jump button {
+    padding: 6px 12px; border-radius: 6px; font: 12px/1 system-ui, sans-serif;
+    background: var(--surface); border: 1px solid var(--line); color: var(--text);
+  }
+  .jump button:hover { border-color: rgba(255,255,255,.26); background: #1f2226; }
+
+  .status { margin: 10px 0 0; font: 11px/1.35 system-ui, sans-serif; color: var(--muted); }
+  /* Empty state: the transport goes inert because there is nothing to seek.
+     The speed deck stays live, since a rate is a saved preference, not page state. */
+  body[data-state=idle] .deck { opacity: .35; pointer-events: none; }
+</style>
+</head>
+<body data-state="idle">
+
+<div class="gauge">
+  <button class="step" id="down" aria-label="Slower">−</button>
+  <output class="rate"><span id="rateval">1</span><span class="x">×</span></output>
+  <button class="step" id="up" aria-label="Faster">+</button>
+</div>
+
+<input id="speed" type="range" min="0" max="1000" step="1" value="0"
+       aria-label="Playback speed">
+<div class="ticks" id="ticks"></div>
+
+<div class="presets">
+  <button data-rate="0.25">0.25</button>
+  <button data-rate="0.5">0.5</button>
+  <button data-rate="0.75">0.75</button>
+  <button data-rate="1">1</button>
+  <button data-rate="1.5">1.5</button>
+  <button data-rate="2">2</button>
+  <button data-rate="3">3</button>
+  <button data-rate="4">4</button>
+  <button data-rate="5">5</button>
+  <button data-rate="8">8</button>
+</div>
+
+<hr>
+
+<div class="deck">
+  <div class="clock">
+    <span class="elapsed" id="now">--:--</span>
+    <span class="total" id="dur">--:--</span>
+    <button class="play" id="play" aria-label="Pause"><i></i></button>
+  </div>
+
+  <div class="track" id="track" role="slider" tabindex="0"
+       aria-label="Seek" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0">
+    <div class="fill" id="fill"></div>
+    <div class="knob" id="knob"></div>
+    <div class="hint" id="hint"></div>
+  </div>
+
+  <div class="skips">
+    <button data-d="-30">−30</button>
+    <button data-d="-10">−10</button>
+    <button data-d="-5">−5</button>
+    <button data-d="5">+5</button>
+    <button data-d="10">+10</button>
+    <button data-d="30">+30</button>
+  </div>
+
+  <div class="jump">
+    <div class="entry">
+      <input id="h" type="number" min="0" step="1" placeholder="hh" aria-label="Hours">
+      <span>:</span>
+      <input id="m" type="number" min="0" step="1" placeholder="mm" aria-label="Minutes">
+      <span>:</span>
+      <input id="s" type="number" min="0" step="1" placeholder="ss" aria-label="Seconds">
+    </div>
+    <button id="go">Jump</button>
+  </div>
+</div>
+
+<p class="status" id="status" role="status">Looking for a video on this page</p>
+
+<script src="popup.js"></script>
+</body>
+</html>

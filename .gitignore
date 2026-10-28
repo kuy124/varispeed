@@ -1,0 +1,13 @@
+# Screenshot scratch files
+_tmp/
+_shot/
+
+# Editor and OS noise
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Python bytecode from gen_icons.py
+__pycache__/
+*.pyc
