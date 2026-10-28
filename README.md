@@ -27,7 +27,7 @@ Chrome does not distribute this in the Web Store, so load it unpacked:
 4. Choose **Load unpacked** and pick the repo folder.
 5. Pin Varispeed to the toolbar if you want the panel one click away.
 
-Requires Chrome 111 or newer (the manifest uses `world: "MAIN"` for content scripts).
+Built and checked on Chrome 149. The manifest uses `world: "MAIN"` content scripts, so it needs a Chrome new enough to support them.
 
 ## Use
 

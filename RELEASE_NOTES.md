@@ -12,7 +12,7 @@ Chrome does not distribute this in the Web Store, so it loads unpacked.
 4. Choose **Load unpacked** and pick the folder.
 5. Pin Varispeed to the toolbar.
 
-Needs Chrome 111 or newer, because the manifest uses `world: "MAIN"` content scripts.
+Built and checked on Chrome 149. The manifest uses `world: "MAIN"` content scripts, so it needs a Chrome new enough to support them.
 
 ## What this release does
 
