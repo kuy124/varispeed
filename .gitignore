@@ -1,6 +1,7 @@
-# Screenshot scratch files
+# Screenshot scratch files and throwaway Chrome profiles
 _tmp/
 _shot/
+_prof*/
 
 # Editor and OS noise
 .vscode/
