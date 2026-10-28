@@ -6,10 +6,10 @@ Varispeed sets any HTML5 video from **1/16x to 100x** and puts seek controls on 
 
 Chrome does not distribute this in the Web Store, so it loads unpacked.
 
-1. Download the source below and unzip it, or clone the repo.
+1. Download `varispeed-1.3.0.zip` below and unzip it into a folder you can keep.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode** (top right).
-4. Choose **Load unpacked** and pick the folder.
+4. Choose **Load unpacked** and pick that folder.
 5. Pin Varispeed to the toolbar.
 
 Built and checked on Chrome 149. The manifest uses `world: "MAIN"` content scripts, so it needs a Chrome new enough to support them.

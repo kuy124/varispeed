@@ -11,3 +11,6 @@ Thumbs.db
 # Python bytecode from gen_icons.py
 __pycache__/
 *.pyc
+
+# Release build artifacts
+*.zip
