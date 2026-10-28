@@ -10,7 +10,7 @@ Varispeed sets any HTML5 video from **1/16x to 100x**, and puts seek controls on
 
 Checked on Chrome 149. Needs a Chrome that supports `world: "MAIN"` content scripts.
 
-## What changed in 1.3.0
+## What changed
 
 - **Slow range opened up.** Chrome's real floor is `0.0625`, not the `0.25` most speed extensions expose.
 - **Ten presets, in two rows:** `0.25 0.5 0.75 1 1.5` and `2 3 4 5 8`.

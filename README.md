@@ -63,26 +63,6 @@ The panel talks to the page over messages rather than acting directly, because a
 
 Two worlds are needed because a content script in the isolated world can set `video.playbackRate`, but YouTube's player owns that property and resets it on the next load. Only a script running in the page's world can call the player's own setter, so `main.js` relays the rate over `postMessage`.
 
-## Tests
-
-```sh
-node test.mjs
-```
-
-The suite loads `content.js` and `popup.js` against DOM stubs and asserts the behaviour that is easy to get wrong:
-
-- the log slider round-trips to exact preset values rather than drifting to `1.97x`
-- `-` and `+` step through the preset list, and stop at the ends
-- the seek target picks the largest visible video, not the first one in the DOM
-- the panel converts `hh:mm:ss` to seconds correctly, including values over 60 in a field
-- the rate survives a `ratechange` event that a site fires to reset it
-
-No browser is needed. It does not test rendering or real site behaviour, so the screenshots in `docs/` were captured separately in headless Chrome from the real files.
-
-## Icon
-
-Ink ground, one amber signal, and a double fast-forward chevron. The 16px and 32px sizes use a bolder, line-free variant because the speed lines blur into a smudge below roughly 24px.
-
 ## License
 
-No license file is included, which means default copyright applies and the code cannot legally be reused. MIT is the usual choice for an extension of this kind.
+MIT. See [LICENSE](LICENSE).
