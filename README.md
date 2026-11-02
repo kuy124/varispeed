@@ -1,6 +1,6 @@
 # Varispeed
 
-A Chrome extension that sets any HTML5 video from **1/16x to 100x**, and puts seek controls on the video itself.
+A Chrome extension that sets any HTML5 video from **1/16x to 100x**, and puts a seek bar on the video itself when you hold Shift.
 
 Varispeed is the broadcast term for variable playback rate. That is the whole job: change how fast a video plays, and make it possible to jump around inside one without leaving the page.
 
@@ -41,7 +41,7 @@ To update an unpacked install, replace its files with the new ZIP contents, clic
 
 **Seeking** works in two places, both of which act on the video that is actually on screen:
 
-- **On the video:** hover for a full-width timeline with time previews, buffered ranges, skip buttons, and a speed selector. It works in fullscreen and iframes, hides after two idle seconds, and stays visible while dragging or using the keyboard.
+- **On the video:** hold Shift and point at a video for a full-width timeline with time previews (to a tenth of a second), buffered ranges, skip buttons, and a speed selector. Plain hover does nothing, so thumbnail previews and small embeds stay out of the way. The bar stays open while Shift is held, works in fullscreen and iframes, and lingers for two idle seconds after you release Shift over it. It stays visible while dragging or using the keyboard.
 - **In the panel:** click the timeline to jump, drag to scrub, or type a time as `hh:mm:ss` and press Enter.
 
 The panel talks to the page over messages rather than acting directly, because a popup runs in its own document and cannot reach a `<video>` in the tab. It picks the largest visible video on the page, so a small muted preview cannot take the seek instead of the main video.

@@ -3,6 +3,9 @@
   const MAX_RATE = 16; // Chrome clamps playbackRate here; beyond it we fast-seek instead
   let speed = 1;
   let hasShadow = false;
+  let shiftHeld = false;
+  let hoveredVideo = null;
+  let activeUi = null;
 
   const timers = new WeakMap(); // video -> fast-seek interval
   const managed = new WeakMap();
@@ -67,7 +70,8 @@
 
   // ---------- on-video seek UI ----------
   // Lives in a shadow root so no site stylesheet can touch it, and is created
-  // lazily on first hover so pages with many videos don't pay for it.
+  // lazily when Shift is first held over a video, so pages with many videos
+  // don't pay for it. Plain hover stays silent; only the modifier summons it.
   // Same tokens as the popup: ink ground, one amber signal, mono timecode.
   // Dark because the bar floats on top of video, where light chrome glares.
   // Tachometer direction: ENERGY 2 / RHYTHM 2 / MOTION 1.
@@ -173,6 +177,8 @@
     return `${h ? h + ':' : ''}${mm}:${String(sec).padStart(2, '0')}`;
   };
 
+  const fmtTenths = (s) => `${fmt(s)}.${Math.floor(s * 10) % 10}`;
+
   const seekDescription = (time, duration) =>
     `${fmt(time)}.${Math.round(time * 10) % 10} of ${fmt(duration)}`;
 
@@ -226,6 +232,8 @@
       hideTimer: 0,
       dragging: false,
       preview: null, // seconds under the cursor, or null
+      hostHovered: false,
+      video,
     };
 
     ui.skips.forEach((b) => {
@@ -242,6 +250,7 @@
         ui.notice.textContent = 'Could not save speed. Reload Varispeed and this page.';
         ui.notice.hidden = false;
       }
+      armIdle(video, ui);
     });
 
     // Hovering the rail previews where a click would land: a ghost marker on
@@ -296,11 +305,23 @@
       ui.played.style.width = `${p}%`;
       ui.head.style.left = `${p}%`;
     });
-    host.addEventListener('pointerenter', (e) => show(video, e));
-    host.addEventListener('pointermove', (e) => show(video, e));
-    host.addEventListener('pointerleave', () => hide(video));
+    const hostPoint = (e) => {
+      ui.hostHovered = true;
+      hoveredVideo = video;
+      syncShift(e);
+      if (e.shiftKey || shiftHeld) show(video, e);
+      else armIdle(video, ui); // the bar was summoned earlier; keep it alive
+    };
+    host.addEventListener('pointerenter', hostPoint);
+    host.addEventListener('pointermove', hostPoint);
+    host.addEventListener('pointerleave', () => {
+      ui.hostHovered = false;
+      if (hoveredVideo === video) hoveredVideo = null;
+      hide(video);
+    });
     host.addEventListener('focusin', () => show(video));
     host.addEventListener('focusout', () => armIdle(video, ui));
+    host.addEventListener('pointerdown', () => armIdle(video, ui));
     // Player shortcuts must not steal keys or clicks from these controls.
     for (const event of ['keyup', 'pointerdown', 'pointerup', 'click']) {
       host.addEventListener(event, (e) => e.stopPropagation());
@@ -359,7 +380,7 @@
       ui.head.style.left = `${p}%`;
     }
     const shown = ui.preview ?? video.currentTime;
-    ui.elapsed.textContent = fmt(shown);
+    ui.elapsed.textContent = ui.preview === null ? fmt(shown) : fmtTenths(shown);
     ui.duration.textContent = known ? fmt(dur) : dur === Infinity ? 'LIVE' : '--:--';
     ui.previewLabel.hidden = ui.preview === null;
     ui.bar.setAttribute('aria-valuetext', known ? seekDescription(Number(ui.bar.value), dur) : 'Seek unavailable');
@@ -388,7 +409,37 @@
 
   const IDLE_MS = 2000;
   let keyboardInput = false;
-  document.addEventListener('keydown', () => { keyboardInput = true; }, true);
+  const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta']);
+
+  // Pointer events carry the modifier state, so an iframe that never sees the
+  // keydown (focus stays in the parent page) still knows Shift is held.
+  const syncShift = (event) => {
+    if (event && typeof event.shiftKey === 'boolean') shiftHeld = event.shiftKey;
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (MODIFIERS.has(e.key)) {
+      if (e.key === 'Shift' && !shiftHeld) {
+        shiftHeld = true;
+        if (hoveredVideo) show(hoveredVideo);
+      }
+      return;
+    }
+    keyboardInput = true;
+  }, true);
+  document.addEventListener('keyup', (e) => {
+    if (e.key !== 'Shift' || !shiftHeld) return;
+    shiftHeld = false;
+    if (!activeUi) return;
+    const overBar = activeUi.hostHovered || activeUi.host.matches(':hover');
+    if (overBar || busy(activeUi)) armIdle(activeUi.video, activeUi);
+    else dismiss(activeUi);
+  }, true);
+  window.addEventListener('blur', () => {
+    shiftHeld = false;
+    keyboardInput = false;
+    if (activeUi) dismiss(activeUi);
+  });
   document.addEventListener('pointerdown', () => { keyboardInput = false; }, true);
 
   // Range inputs can remain :focus-visible after a mouse click.
@@ -403,21 +454,30 @@
     ui.raf = 0;
     ui.dragging = false;
     ui.preview = null;
+    ui.hostHovered = false;
     ui.rail.dataset.preview = 'false';
     ui.host.style.display = 'none';
+    if (activeUi === ui) activeUi = null;
   }
 
   function show(video, event) {
     if (!video.isConnected) return releaseVideo(video);
     if (video.closest('.ad-showing')) return;
+    if (event && !(event.shiftKey || shiftHeld)) return;
+    const r = video.getBoundingClientRect();
+    if (r.width < 216 || r.height < 90 || r.bottom <= 0 || r.top >= window.innerHeight) return;
     const ui = overlays.get(video) || buildOverlay(video);
+    if (activeUi && activeUi !== ui && !busy(activeUi)) dismiss(activeUi);
+    activeUi = ui;
     if (event) {
       // Hiding the bar fires pointerenter underneath it without cursor movement.
       // ponytail: compare CSS pixels; use device-pixel deltas if subpixel motion matters.
       const x = Math.floor(event.clientX), y = Math.floor(event.clientY);
       if (ui.pointerX === x && ui.pointerY === y) {
-        if (ui.raf && event.type === 'pointerenter') armIdle(video, ui);
-        return;
+        if (ui.raf) {
+          if (event.type === 'pointerenter') armIdle(video, ui);
+          return;
+        }
       }
       ui.pointerX = x;
       ui.pointerY = y;
@@ -429,8 +489,15 @@
     armIdle(video, ui);
   }
 
+  function dismissShown(video) {
+    const ui = overlays.get(video);
+    if (!ui || !ui.raf || busy(ui)) return;
+    dismiss(ui);
+  }
+
   function armIdle(video, ui) {
     clearTimeout(ui.hideTimer);
+    if (shiftHeld) return; // holding the modifier pins the bar open
     ui.hideTimer = setTimeout(() => {
       if (busy(ui)) return armIdle(video, ui);
       dismiss(ui);
@@ -467,9 +534,18 @@
     video.addEventListener('loadedmetadata', () => applySettings(video), options);
     // YouTube's chrome can cover the <video> and intercept its pointer events.
     const surface = video.closest('.html5-video-player') || video;
-    surface.addEventListener('pointerenter', (e) => show(video, e), options);
-    surface.addEventListener('pointermove', (e) => show(video, e), options);
-    surface.addEventListener('pointerleave', () => hide(video), options);
+    const surfacePoint = (e) => {
+      hoveredVideo = video;
+      syncShift(e);
+      if (e.shiftKey || shiftHeld) show(video, e);
+      else dismissShown(video);
+    };
+    surface.addEventListener('pointerenter', surfacePoint, options);
+    surface.addEventListener('pointermove', surfacePoint, options);
+    surface.addEventListener('pointerleave', () => {
+      if (hoveredVideo === video) hoveredVideo = null;
+      hide(video);
+    }, options);
     surface.addEventListener('focusin', () => { if (keyboardInput) show(video); }, options);
     applySettings(video);
   }

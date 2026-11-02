@@ -115,16 +115,36 @@ try {
     prepare(test.frameVideo, test.frame.contentWindow);
   })()`);
 
-  const move = (x, y) => send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+  let shiftHeld = false;
+  const setShift = async (down) => {
+    await send('Input.dispatchKeyEvent', {
+      type: down ? 'rawKeyDown' : 'keyUp',
+      key: 'Shift', code: 'ShiftLeft', windowsVirtualKeyCode: 16,
+      modifiers: down ? 8 : 0,
+    });
+    shiftHeld = down;
+  };
+  const move = (x, y, shift = shiftHeld) => send('Input.dispatchMouseEvent', {
+    type: 'mouseMoved', x, y, modifiers: shift ? 8 : 0,
+  });
   const key = async (key, code = key) => {
     const keyCode = { Home: 36, ArrowDown: 40, ArrowRight: 39, Enter: 13, Escape: 27 }[key];
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode: keyCode });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode: keyCode });
   };
   await move(100, 180);
+  await sleep(150);
+  assert.equal(await evaluate("[...document.querySelectorAll('div')].some((node) => node.shadowRoot)"), false,
+    'plain hover must not build the overlay');
+  await setShift(true);
   await wait("[...document.querySelectorAll('div')].some((node) => node.shadowRoot)");
   await evaluate("test.host = [...document.querySelectorAll('div')].find((node) => node.shadowRoot); test.root = test.host.shadowRoot");
   await wait("test.host.offsetWidth === 620");
+  await setShift(false);
+  await wait("test.host.style.display === 'none'");
+  console.log('PASS: plain hover stays quiet; Shift summons the overlay and releasing it over the video dismisses');
+  await setShift(true);
+  await wait("test.host.style.display === 'block'");
   const bounds = (selector) => evaluate(`(() => {
     const r = test.root.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
     return { x: r.x, y: r.y, width: r.width, height: r.height };
@@ -133,8 +153,8 @@ try {
     const r = await bounds(selector);
     const x = r.x + r.width / 2, y = r.y + r.height / 2;
     await move(x, y);
-    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
-    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
   };
   const fits = (host, video) => evaluate(`(() => {
     const h = ${host}, box = h.getBoundingClientRect(), v = ${video}.getBoundingClientRect();
@@ -150,9 +170,18 @@ try {
   await evaluate("test.root.querySelector('input').focus()");
   await key('Escape');
   await move(openingRail.x + openingRail.width / 2, openingRail.y + openingRail.height / 2);
+  await move(openingRail.x + openingRail.width / 2 + 1, openingRail.y + openingRail.height / 2);
   await sleep(600);
-  assert.equal(await evaluate('test.host.style.display'), 'block', 'opening under the pointer must not trigger the short leave timer');
-  console.log('PASS: player-chrome hover opens the overlay; playhead and preview marker have their full height');
+  assert.equal(await evaluate('test.host.style.display'), 'block', 'Shift must keep the bar open without an idle hide');
+  await setShift(false);
+  await sleep(600);
+  assert.equal(await evaluate('test.host.style.display'), 'block', 'releasing Shift over the bar must start the idle delay, not dismiss immediately');
+  await sleep(1700);
+  assert.equal(await evaluate('test.host.style.display'), 'none', 'the bar must idle out after Shift is released');
+  await setShift(true);
+  await move(100, 180);
+  await wait("test.host.style.display === 'block'");
+  console.log('PASS: Shift opens under the pointer, pins the bar while held, and idles out after release');
 
   for (const seconds of [-10, -5, 5, 10]) {
     const before = await evaluate('test.video.currentTime');
@@ -187,24 +216,27 @@ try {
   assert.equal(await evaluate("test.root.querySelector('.rail').dataset.preview"), 'true');
   console.log('PASS: rail hover previews a time without seeking');
 
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1 });
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', buttons: 1, clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
   assert.ok(Math.abs(await evaluate('test.video.currentTime') - 3723 * 0.72) < 3723 / rail.width);
   const thumb = await bounds('.head');
   const tx = thumb.x + thumb.width / 2, ty = thumb.y + thumb.height / 2;
   await move(tx, ty);
-  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: tx, y: ty, button: 'left', buttons: 1, clickCount: 1 });
-  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rail.x + rail.width * 0.6, y, button: 'left', buttons: 1 });
+  await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: tx, y: ty, button: 'left', buttons: 1, clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
+  await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: rail.x + rail.width * 0.6, y, button: 'left', buttons: 1, modifiers: shiftHeld ? 8 : 0 });
   await sleep(2300);
   assert.equal(await evaluate('test.host.style.display'), 'block', 'a held drag must not auto-hide');
   const scrubbed = await evaluate("({ time: test.video.currentTime, value: test.root.querySelector('input').value, max: test.root.querySelector('input').max, step: test.root.querySelector('input').step })");
   assert.ok(Math.abs(scrubbed.time - 3723 * 0.6) < 3723 / rail.width, `Native scrub: ${JSON.stringify(scrubbed)}`);
-  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rail.x + rail.width * 0.6, y, button: 'left', clickCount: 1 });
+  await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: rail.x + rail.width * 0.6, y, button: 'left', clickCount: 1, modifiers: shiftHeld ? 8 : 0 });
+  await sleep(100);
+  await setShift(false);
   await sleep(2300);
-  assert.equal(await evaluate('test.host.style.display'), 'none', 'pointer-idle hide must resume after dragging');
+  assert.equal(await evaluate('test.host.style.display'), 'none', 'releasing Shift over the bar must idle out after a drag');
+  await setShift(true);
   await move(101, 180);
   await wait("test.host.style.display === 'block'");
-  console.log('PASS: native scrubbing stays visible during a drag, hides after release, and wakes on movement');
+  console.log('PASS: native scrubbing stays visible during a drag and idles out after Shift release');
 
   await evaluate("test.root.querySelector('input').focus(); test.siteKeys = 0");
   const position = await evaluate('test.video.currentTime');
@@ -212,8 +244,9 @@ try {
   assert.ok(Math.abs(await evaluate('test.video.currentTime') - position - 0.1) < 0.15);
   assert.match(await evaluate("test.root.querySelector('input').getAttribute('aria-valuetext')"), /\.9 of /);
   assert.equal(await evaluate('test.siteKeys'), 0, 'focused controls must not trigger player shortcuts');
+  await setShift(false);
   await sleep(2300);
-  assert.equal(await evaluate('test.host.style.display'), 'block', 'keyboard focus must stay visible');
+  assert.equal(await evaluate('test.host.style.display'), 'block', 'keyboard focus must stay visible after Shift is released');
   await key('Escape');
   assert.equal(await evaluate('test.host.style.display'), 'none');
   await evaluate('test.surface = test.video.closest(".html5-video-player"); test.surface.tabIndex = 0; test.surface.focus()');
@@ -222,11 +255,12 @@ try {
   console.log('PASS: rail supports arrow-key seeking, keeps keyboard focus visible, and closes with Escape');
 
   const frame = await evaluate('(() => { const r = test.frame.getBoundingClientRect(); return { x: r.x, y: r.y }; })()');
+  await setShift(true);
   await move(frame.x + 100, frame.y + 100);
   await wait("[...test.frame.contentDocument.querySelectorAll('div')].some((node) => node.shadowRoot)");
   await evaluate("test.frameHost = [...test.frame.contentDocument.querySelectorAll('div')].find((node) => node.shadowRoot)");
   for (const width of [320, 240]) {
-    await evaluate(`test.frame.style.width = '${width}px'; test.frameVideo.dispatchEvent(new PointerEvent('pointermove'))`);
+    await evaluate(`test.frame.style.width = '${width}px'; test.frameVideo.dispatchEvent(new PointerEvent('pointermove', { shiftKey: true }))`);
     await sleep(100);
     assert.ok(await fits('test.frameHost', 'test.frameVideo'), `${width}px iframe must not clip controls`);
     console.log(`PASS: ${width}px iframe controls fit without clipping`);
@@ -272,14 +306,16 @@ try {
     writeFileSync(join(dir, 'overlay-narrow.png'), Buffer.from(narrowImage.data, 'base64'));
     console.log(`Screenshot: ${join(dir, 'overlay-narrow.png')}`);
   }
+  await setShift(false);
   await wait("test.host.style.display === 'none'");
   await evaluate('test.video.remove()');
   await wait('!test.host.isConnected');
-  await evaluate('test.surface.dispatchEvent(new PointerEvent("pointermove", { clientX: 119, clientY: 180 }))');
+  await evaluate('test.surface.dispatchEvent(new PointerEvent("pointermove", { clientX: 119, clientY: 180, shiftKey: true }))');
   assert.equal(await evaluate('[...document.querySelectorAll("div")].filter(d => d.shadowRoot?.querySelector(".wrap")).length'), 0);
   console.log('PASS: removing a video cleans up its overlay without rebuilding it on player hover');
   await evaluate('test.surface.append(test.video)');
   await sleep(100);
+  await setShift(true);
   await move(127, 180);
   await wait('[...document.querySelectorAll("div")].some(d => d.shadowRoot?.querySelector(".wrap") && d.style.display === "block")');
   assert.equal(await evaluate('[...document.querySelectorAll("div")].filter(d => d.shadowRoot?.querySelector(".wrap")).length'), 1);
