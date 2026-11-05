@@ -1,9 +1,10 @@
-// Run: node test.mjs
+// Run: node test.mjs [--firefox]
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const read = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
+const namespace = process.argv.includes('--firefox') ? 'browser' : 'chrome';
 
 // ---------- fake page ----------
 const mk = (w, h, extra = {}) => ({
@@ -25,7 +26,7 @@ const tiny = mk(1, 1, { paused: true });
 const posted = [];
 let onChanged, onMessage;
 globalThis.window = { postMessage: (m) => posted.push(m), addEventListener() {} };
-globalThis.chrome = {
+globalThis[namespace] = {
   storage: {
     local: { get: async () => ({ videoSpeed: 100 }), set() {} },
     onChanged: { addListener(fn) { onChanged = fn; } },
@@ -102,9 +103,9 @@ globalThis.document = {
 };
 
 let saved, msgs = [];
-globalThis.chrome.storage.local.set = (o) => { saved = o; };
-globalThis.chrome.storage.local.get = (k, cb) => cb && cb({ videoSpeed: 1 });
-globalThis.chrome.tabs = {
+globalThis[namespace].storage.local.set = (o) => { saved = o; };
+globalThis[namespace].storage.local.get = async () => ({ videoSpeed: 1 });
+globalThis[namespace].tabs = {
   query: async () => [{ id: 1 }],
   sendMessage: async (id, m) => { msgs.push(m); return null; },
 };

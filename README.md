@@ -1,6 +1,6 @@
 # Varispeed
 
-A Chrome extension that sets any HTML5 video from **1/16x to 100x**, and puts a seek bar on the video itself when you hold Shift.
+A Chrome and Firefox extension that sets any HTML5 video from **1/16x to 100x**, and puts a seek bar on the video itself when you hold Shift.
 
 Varispeed is the broadcast term for variable playback rate. That is the whole job: change how fast a video plays, and make it possible to jump around inside one without leaving the page.
 
@@ -19,17 +19,44 @@ The slider is log-scaled. On a linear `0.0625` to `100` track, everything from s
 
 ## Install
 
-Chrome does not distribute this in the Web Store, so it loads unpacked:
+### Chrome
 
-1. Download the extension ZIP from the [latest release](https://github.com/kuy124/varispeed/releases/latest) and unzip it.
+Use the Chrome ZIP, not the Firefox ZIP:
+
+1. Download `varispeed-chrome-1.6.0.zip` from the [latest release](https://github.com/kuy124/varispeed/releases/latest) (or build below) and unzip it.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode** (top right).
 4. Choose **Load unpacked** and select the unzipped folder.
 5. Pin Varispeed to the toolbar.
 
-Built and checked on Chrome 149. The manifest uses `world: "MAIN"` content scripts, so it needs a Chrome new enough to support them.
+Targets current desktop Chrome (minimum Chrome 111 for `world: "MAIN"` content scripts).
 
 To update an unpacked install, replace its files with the new ZIP contents, click **Reload** in `chrome://extensions`, and refresh video tabs.
+
+### Firefox
+
+Targets current desktop Firefox (minimum Firefox 140). The Firefox manifest includes an extension ID and declares that no data is collected.
+
+1. Build below or download `varispeed-firefox-1.6.0.zip` and unzip it.
+2. Open `about:debugging#/runtime/this-firefox`.
+3. Choose **Load Temporary Add-on** and select the extracted `manifest.json`.
+4. Open a video page and use Varispeed from the extensions toolbar.
+
+Temporary add-ons are removed when Firefox restarts. Permanent installation in regular Firefox requires submitting the Firefox ZIP to Mozilla for signing (listed or unlisted); the generated ZIP is unsigned, not a permanently installable XPI. Firefox may ask you to grant website access through the extension's permissions.
+
+### Build and verify
+
+One shared source generates both browser packages. Python 3.9+ and Node.js 22+ are sufficient; no dependencies need installing.
+
+```sh
+python build.py
+python test-build.py
+node test.mjs
+node test.mjs --firefox
+node test-overlay.mjs
+```
+
+Outputs: `dist/chrome/`, `dist/firefox/`, `dist/varispeed-chrome-1.6.0.zip`, and `dist/varispeed-firefox-1.6.0.zip`. The last test requires installed Chrome (`CHROME_PATH` can override its location); `--firefox` checks the Firefox API namespace with mocks, not a live Firefox browser.
 
 ## Use
 
@@ -50,8 +77,8 @@ The panel talks to the page over messages rather than acting directly, because a
 
 - **Per-site rates.** The rate is global.
 - **Global keyboard shortcuts.** Player shortcuts are left alone. Arrow keys seek only when the overlay timeline is focused.
-- **Auto-update.** Loading unpacked means Chrome does not update the extension.
-- **Safari or Firefox.** `world: "MAIN"` content scripts are a Chrome MV3 feature.
+- **Auto-update for local builds.** Chrome unpacked and Firefox temporary installs do not update automatically.
+- **Safari.** Only desktop Chrome and Firefox packages are provided.
 
 ## How it works
 

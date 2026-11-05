@@ -1,7 +1,7 @@
-![On-video controls](https://raw.githubusercontent.com/kuy124/varispeed/v1.5.0/docs/overlay.png)
+![On-video controls](https://raw.githubusercontent.com/kuy124/varispeed/v1.6.0/docs/overlay.png)
 
-- Seek controls appear only while Shift is held, so plain hover leaves previews and small embeds alone.
-- Time previews while aiming or scrubbing now show tenths of a second, matching the seek step.
-- One bar at a time: it stays pinned while Shift is held, works in iframes and fullscreen, and idles out two seconds after release.
+- Separate Chrome and Firefox packages, built from one shared source with the same speed controls and Shift-to-seek overlay.
+- Firefox uses its native extension APIs and includes the required extension ID and no-data-collection declaration.
+- Chrome loads unpacked as before. Firefox loads temporarily through `about:debugging`; permanent installation requires Mozilla signing, and the Firefox ZIP is unsigned.
 
-[Download varispeed-1.5.0.zip](https://github.com/kuy124/varispeed/releases/download/v1.5.0/varispeed-1.5.0.zip). [Installation and update instructions](https://github.com/kuy124/varispeed#install).
+[Download for Chrome](https://github.com/kuy124/varispeed/releases/download/v1.6.0/varispeed-chrome-1.6.0.zip). [Download for Firefox](https://github.com/kuy124/varispeed/releases/download/v1.6.0/varispeed-firefox-1.6.0.zip). [Installation and update instructions](https://github.com/kuy124/varispeed#install).

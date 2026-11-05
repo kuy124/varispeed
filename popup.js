@@ -1,4 +1,5 @@
 const $ = (id) => document.getElementById(id);
+const api = globalThis.browser ?? globalThis.chrome;
 
 // Chrome clamps playbackRate to 1/16..16, so 0.0625 is the true slow floor.
 const MIN = 0.0625, MAX = 100;
@@ -55,7 +56,7 @@ function setSpeed(raw) {
   if (!isFinite(s)) return;
   rate = s;
   paintRate();
-  chrome.storage.local.set({ videoSpeed: s });
+  api.storage.local.set({ videoSpeed: s });
 }
 
 slider.addEventListener('input', () => setSpeed(snap(fromSlider(Number(slider.value)))));
@@ -77,7 +78,7 @@ for (const r of [0.25, 1, 4, 16, 100]) {
   $('ticks').appendChild(el);
 }
 
-chrome.storage.local.get('videoSpeed', (r) => {
+api.storage.local.get('videoSpeed').then((r) => {
   rate = clampRate(Number(r.videoSpeed) || 1);
   paintRate();
 });
@@ -87,8 +88,8 @@ chrome.storage.local.get('videoSpeed', (r) => {
 // message. Frames without a video stay silent, so the first reply wins.
 const send = async (msg) => {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    return await chrome.tabs.sendMessage(tab.id, msg);
+    const [tab] = await api.tabs.query({ active: true, currentWindow: true });
+    return await api.tabs.sendMessage(tab.id, msg);
   } catch (e) {
     return null;
   }

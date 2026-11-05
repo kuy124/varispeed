@@ -1,4 +1,5 @@
 (() => {
+  const api = globalThis.browser ?? globalThis.chrome;
   const KEY = 'videoSpeed';
   const MAX_RATE = 16; // Chrome clamps playbackRate here; beyond it we fast-seek instead
   let speed = 1;
@@ -245,7 +246,7 @@
       if (!LADDER.includes(next)) return;
       ui.notice.hidden = true;
       try {
-        await chrome.storage.local.set({ [KEY]: next });
+        await api.storage.local.set({ [KEY]: next });
       } catch (e) {
         ui.notice.textContent = 'Could not save speed. Reload Varispeed and this page.';
         ui.notice.hidden = false;
@@ -597,7 +598,7 @@
     return best;
   }
 
-  chrome.storage.onChanged.addListener((changes, area) => {
+  api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local' || !changes[KEY]) return;
     speed = Number(changes[KEY].newValue) || 1;
     for (const host of liveHosts) host.shadowRoot.querySelector('.notice')?.setAttribute('hidden', '');
@@ -608,7 +609,7 @@
   // The popup lives in its own document and cannot touch this <video>, so it
   // asks for state and sends seeks over this channel. A frame with no visible
   // video stays silent, which lets the frame that has one answer instead.
-  chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
+  api.runtime.onMessage.addListener((msg, _sender, reply) => {
     const v = pickVideo();
     if (!v || !msg) return false;
     if (msg.type === 'seek') seek(v, Number(msg.time));
@@ -625,7 +626,7 @@
 
   (async () => {
     try {
-      const r = await chrome.storage.local.get(KEY);
+      const r = await api.storage.local.get(KEY);
       speed = Number(r[KEY]) || 1;
     } catch (e) { speed = 1; }
     relay(rate());
