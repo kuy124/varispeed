@@ -1,9 +1,9 @@
-// Run: node test-overlay.mjs [--screenshots]. Chrome must be installed.
+// Run: node test-overlay.mjs [--screenshots]. Chrome or Chromium must be installed.
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const dir = mkdtempSync(join(tmpdir(), 'varispeed-overlay-'));
@@ -11,7 +11,10 @@ const profile = join(dir, 'profile');
 const chrome = process.env.CHROME_PATH || (process.platform === 'win32'
   ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
   : process.platform === 'darwin' ? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-    : '/usr/bin/google-chrome');
+    : [...(process.env.PATH || '').split(delimiter).filter(Boolean), '/usr/bin', '/snap/bin']
+      .flatMap((dir) => ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']
+        .map((name) => join(dir, name)))
+      .find(existsSync) || 'google-chrome');
 const browser = spawn(chrome, [
   '--headless=new', '--disable-gpu', '--no-first-run',
   '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank',

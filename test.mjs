@@ -1,10 +1,27 @@
 // Run: node test.mjs [--firefox]
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import { posix } from 'node:path';
+import { runInNewContext } from 'node:vm';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const read = (f) => readFileSync(new URL(f, import.meta.url), 'utf8');
 const namespace = process.argv.includes('--firefox') ? 'browser' : 'chrome';
+
+// Exercise Linux browser discovery even when this test runs on Windows/macOS.
+const browserSelection = read('test-overlay.mjs').split('const chrome = ')[1].split('\nconst browser = ')[0];
+const linuxChrome = (paths, env = {}) => runInNewContext(browserSelection, {
+  process: { platform: 'linux', env },
+  delimiter: ':', join: posix.join, existsSync: (path) => paths.includes(path),
+});
+assert.equal(linuxChrome([], { CHROME_PATH: '/custom/browser' }), '/custom/browser');
+for (const name of ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']) {
+  assert.equal(linuxChrome([`/opt/bin/${name}`], { PATH: '/opt/bin:/usr/bin' }), `/opt/bin/${name}`);
+}
+assert.equal(linuxChrome(['/usr/bin/chromium']), '/usr/bin/chromium');
+assert.equal(linuxChrome(['/snap/bin/chromium']), '/snap/bin/chromium');
+assert.equal(linuxChrome([]), 'google-chrome');
+console.log('PASS: Linux Chrome/Chromium discovery and explicit override');
 
 // ---------- fake page ----------
 const mk = (w, h, extra = {}) => ({

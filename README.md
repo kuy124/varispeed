@@ -19,6 +19,8 @@ The slider is log-scaled. On a linear `0.0625` to `100` track, everything from s
 
 ## Install
 
+The same packages work on Linux, Windows, and macOS; no native app is required. On Linux, Chromium can also load the Chrome package through `chrome://extensions`.
+
 ### Chrome
 
 Use the Chrome ZIP, not the Firefox ZIP:
@@ -49,14 +51,14 @@ Temporary add-ons are removed when Firefox restarts. Permanent installation in r
 One shared source generates both browser packages. Python 3.9+ and Node.js 22+ are sufficient; no dependencies need installing.
 
 ```sh
-python build.py
-python test-build.py
+python3 build.py
+python3 test-build.py
 node test.mjs
 node test.mjs --firefox
 node test-overlay.mjs
 ```
 
-Outputs: `dist/chrome/`, `dist/firefox/`, `dist/varispeed-chrome-1.6.0.zip`, and `dist/varispeed-firefox-1.6.0.zip`. The last test requires installed Chrome (`CHROME_PATH` can override its location); `--firefox` checks the Firefox API namespace with mocks, not a live Firefox browser.
+Outputs: `dist/chrome/`, `dist/firefox/`, `dist/varispeed-chrome-1.6.0.zip`, and `dist/varispeed-firefox-1.6.0.zip`. On Windows, use `python` instead of `python3` if needed. The last test requires installed Chrome or Chromium; Linux discovery checks `PATH`, `/usr/bin`, and `/snap/bin`. Set `CHROME_PATH` to override the executable, for example `CHROME_PATH=/usr/bin/chromium node test-overlay.mjs`. Headless tests do not need a desktop session. `--firefox` checks the Firefox API namespace with mocks, not a live Firefox browser.
 
 ## Use
 
