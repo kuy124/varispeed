@@ -36,6 +36,10 @@ def build(output):
                 (folder / name).write_bytes(data)
                 package.writestr(name, data)
         print(archive)
+        if browser == 'firefox':
+            xpi = archive.with_suffix('.xpi')
+            xpi.write_bytes(archive.read_bytes())
+            print(xpi)
 
 
 if __name__ == '__main__':

@@ -10,6 +10,8 @@ with TemporaryDirectory() as temp:
     output = Path(temp)
     build(output)
     base = json.loads((ROOT / 'manifest.json').read_text(encoding='utf-8'))
+    firefox = f"varispeed-firefox-{base['version']}"
+    assert (output / f'{firefox}.xpi').read_bytes() == (output / f'{firefox}.zip').read_bytes()
     for browser in ('chrome', 'firefox'):
         with ZipFile(output / f"varispeed-{browser}-{base['version']}.zip") as package:
             assert package.testzip() is None

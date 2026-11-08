@@ -39,12 +39,12 @@ To update an unpacked install, replace its files with the new ZIP contents, clic
 
 Targets current desktop Firefox (minimum Firefox 140). The Firefox manifest includes an extension ID and declares that no data is collected.
 
-1. Build below or download `varispeed-firefox-1.6.0.zip` and unzip it.
+1. Build below or download `varispeed-firefox-1.6.0.xpi` from the [v1.6.0 release](https://github.com/kuy124/varispeed/releases/tag/v1.6.0). The Firefox ZIP remains available as an alternative.
 2. Open `about:debugging#/runtime/this-firefox`.
-3. Choose **Load Temporary Add-on** and select the extracted `manifest.json`.
+3. Choose **Load Temporary Add-on** and select the `.xpi` file (or an extracted Firefox ZIP's `manifest.json`).
 4. Open a video page and use Varispeed from the extensions toolbar.
 
-Temporary add-ons are removed when Firefox restarts. Permanent installation in regular Firefox requires submitting the Firefox ZIP to Mozilla for signing (listed or unlisted); the generated ZIP is unsigned, not a permanently installable XPI. Firefox may ask you to grant website access through the extension's permissions.
+Temporary add-ons are removed when Firefox restarts. **The provided XPI and ZIP are unsigned.** The XPI is the same Firefox package with Firefox's native archive extension; it does not bypass signature checks. Permanent installation in regular Firefox requires Mozilla signing (listed or unlisted). Firefox may ask you to grant website access through the extension's permissions. Firefox-derived browsers must support the same Manifest V3 APIs and minimum version; an XPI alone does not guarantee compatibility with older forks.
 
 ### Build and verify
 
@@ -58,7 +58,7 @@ node test.mjs --firefox
 node test-overlay.mjs
 ```
 
-Outputs: `dist/chrome/`, `dist/firefox/`, `dist/varispeed-chrome-1.6.0.zip`, and `dist/varispeed-firefox-1.6.0.zip`. On Windows, use `python` instead of `python3` if needed. The last test requires installed Chrome or Chromium; Linux discovery checks `PATH`, `/usr/bin`, and `/snap/bin`. Set `CHROME_PATH` to override the executable, for example `CHROME_PATH=/usr/bin/chromium node test-overlay.mjs`. Headless tests do not need a desktop session. `--firefox` checks the Firefox API namespace with mocks, not a live Firefox browser.
+Outputs: `dist/chrome/`, `dist/firefox/`, `dist/varispeed-chrome-1.6.0.zip`, `dist/varispeed-firefox-1.6.0.zip`, and `dist/varispeed-firefox-1.6.0.xpi`. On Windows, use `python` instead of `python3` if needed. The last test requires installed Chrome or Chromium; Linux discovery checks `PATH`, `/usr/bin`, and `/snap/bin`. Set `CHROME_PATH` to override the executable, for example `CHROME_PATH=/usr/bin/chromium node test-overlay.mjs`. Headless tests do not need a desktop session. `--firefox` checks the Firefox API namespace with mocks, not a live Firefox browser.
 
 ## Use
 
